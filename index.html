@@ -1,632 +1,610 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>نظام متابعة المراجعة</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-<style>
-:root {
-  --dark: #0d1117;
-  --mid: #161b22;
-  --light: #1c2128;
-  --border: #30363d;
-  --teal: #00c896;
-  --teal-lt: #7ee8c8;
-  --amber: #f5a623;
-  --red: #e05c5c;
-  --blue: #7b9cff;
-  --gray: #8b949e;
-  --white: #e6edf3;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--dark); color: var(--white); font-family: 'Cairo', sans-serif; min-height: 100vh; }
-::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--mid); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+import { useState, useEffect } from "react";
 
-/* NAV */
-.nav { background: var(--mid); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
-.nav-brand { font-size: 16px; font-weight: 900; color: var(--teal-lt); }
-.nav-tabs { display: flex; gap: 4px; }
-.nav-tab { padding: 6px 16px; border-radius: 6px; border: none; background: transparent; color: var(--gray); cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13px; transition: all .2s; }
-.nav-tab.active { background: var(--teal); color: var(--dark); font-weight: 700; }
-.nav-tab:hover:not(.active) { background: var(--light); color: var(--white); }
+// ═══════════════════════════════════════════
+// DATA DEFINITIONS
+// ═══════════════════════════════════════════
 
-/* LAYOUT */
-.page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
-.page.active { display: block; }
+const AUDITORS = ["أحمد محمد", "سارة علي", "محمود حسن"];
 
-/* CARDS */
-.stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px; }
-.stat-card { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; padding: 20px 16px; text-align: center; }
-.stat-num { font-size: 36px; font-weight: 900; }
-.stat-label { font-size: 12px; color: var(--gray); margin-top: 4px; }
-
-/* TABLE */
-.table-wrap { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.table-head { display: grid; padding: 12px 16px; background: var(--dark); border-bottom: 1px solid var(--border); font-size: 12px; color: var(--gray); font-weight: 700; }
-.table-row { display: grid; padding: 12px 16px; border-bottom: 1px solid #21262d; align-items: center; transition: background .15s; }
-.table-row:last-child { border-bottom: none; }
-.table-row:hover { background: var(--light); }
-.dashboard-grid { grid-template-columns: 2fr 1.5fr 1fr 1fr 0.8fr 0.7fr; gap: 8px; }
-
-/* STATUS BADGE */
-.badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; border: 1px solid; display: inline-block; white-space: nowrap; }
-.badge-done { color: var(--teal); background: #00c89615; border-color: #00c89640; }
-.badge-progress { color: var(--amber); background: #f5a62315; border-color: #f5a62340; }
-.badge-pending { color: var(--gray); background: #8b949e15; border-color: #8b949e40; }
-
-/* PROGRESS */
-.prog-track { height: 6px; background: #21262d; border-radius: 4px; overflow: hidden; flex: 1; }
-.prog-fill { height: 100%; border-radius: 4px; transition: width .4s; }
-.prog-wrap { display: flex; align-items: center; gap: 8px; }
-.prog-label { font-size: 11px; color: var(--gray); min-width: 30px; text-align: left; }
-
-/* BUTTONS */
-.btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13px; font-weight: 600; transition: all .2s; }
-.btn-teal { background: var(--teal); color: var(--dark); }
-.btn-teal:hover { background: var(--teal-lt); }
-.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--gray); }
-.btn-outline:hover { border-color: var(--teal); color: var(--teal); }
-.btn-sm { padding: 4px 12px; font-size: 12px; }
-
-/* FILTER */
-.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-.filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--gray); cursor: pointer; font-family: 'Cairo', sans-serif; font-size: 13px; transition: all .2s; }
-.filter-btn.active { background: #7ee8c820; border-color: var(--teal-lt); color: var(--teal-lt); }
-
-/* DETAIL PAGE */
-.detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.detail-title { font-size: 22px; font-weight: 900; }
-.detail-meta { font-size: 13px; color: var(--gray); margin-top: 3px; }
-.checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-.check-card { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-.check-cat { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
-.check-cat-icon { font-size: 16px; }
-.check-cat-name { font-size: 13px; font-weight: 700; color: var(--teal); }
-.check-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; cursor: pointer; }
-.checkbox { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all .2s; margin-top: 1px; }
-.checkbox.checked { background: var(--teal); border-color: var(--teal); }
-.checkbox.checked::after { content: '✓'; color: var(--dark); font-size: 11px; font-weight: 900; }
-.check-text { font-size: 13px; color: var(--gray); line-height: 1.5; transition: all .2s; }
-.check-text.done { color: #4a5568; text-decoration: line-through; }
-.notes-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-.note-box { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-.note-label { font-size: 12px; color: var(--gray); margin-bottom: 8px; font-weight: 700; }
-textarea { width: 100%; background: var(--dark); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--white); font-size: 13px; font-family: 'Cairo', sans-serif; resize: vertical; outline: none; transition: border .2s; }
-textarea:focus { border-color: var(--teal); }
-
-/* ARCHIVE */
-.arch-grid { grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr 1.5fr 0.7fr; gap: 6px; }
-.arch-input { background: transparent; border: none; color: var(--white); font-family: 'Cairo', sans-serif; font-size: 12px; width: 100%; text-align: center; outline: none; }
-.arch-input:focus { color: var(--teal); }
-
-/* EVALUATION */
-.eval-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
-.eval-card { background: var(--mid); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
-.eval-name { font-size: 16px; font-weight: 900; margin-bottom: 16px; }
-.eval-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; }
-.eval-score { font-size: 32px; font-weight: 900; text-align: center; margin: 16px 0 8px; }
-.eval-grade { text-align: center; font-size: 14px; font-weight: 700; padding: 8px; border-radius: 8px; }
-.grade-excellent { color: var(--teal); background: #00c89615; }
-.grade-good { color: var(--blue); background: #7b9cff15; }
-.grade-improve { color: var(--red); background: #e05c5c15; }
-.eval-input { background: var(--dark); border: 1px solid var(--amber); border-radius: 6px; padding: 4px 8px; color: var(--white); font-family: 'Cairo', sans-serif; font-size: 13px; width: 70px; text-align: center; outline: none; }
-.section-title { font-size: 14px; font-weight: 700; color: var(--gray); margin-bottom: 16px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-.page-title { font-size: 22px; font-weight: 900; color: var(--teal-lt); }
-.date-display { font-size: 13px; color: var(--gray); }
-
-/* TEAM */
-.team-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-.team-card { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-.team-name { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-.team-pct { font-size: 28px; font-weight: 900; margin: 12px 0 4px; }
-
-/* MODAL */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; }
-.modal { background: var(--mid); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 90%; max-width: 860px; max-height: 90vh; overflow-y: auto; }
-.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.modal-title { font-size: 18px; font-weight: 900; }
-.modal-close { background: none; border: none; color: var(--gray); font-size: 20px; cursor: pointer; }
-
-/* TOASTER */
-.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--teal); color: var(--dark); padding: 10px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; z-index: 300; opacity: 0; transition: opacity .3s; pointer-events: none; }
-.toast.show { opacity: 1; }
-
-@media(max-width:700px){
-  .stat-grid { grid-template-columns: repeat(2,1fr); }
-  .checklist-grid, .notes-row, .eval-grid, .team-grid { grid-template-columns: 1fr; }
-  .dashboard-grid { grid-template-columns: 1.5fr 1fr 1fr 0.8fr; }
-  .nav-tabs { gap: 2px; }
-  .nav-tab { padding: 5px 10px; font-size: 12px; }
-}
-</style>
-</head>
-<body>
-
-<!-- NAV -->
-<nav class="nav">
-  <div class="nav-brand">🔍 نظام متابعة المراجعة</div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dashboard')">📊 الداشبورد</button>
-    <button class="nav-tab" onclick="showPage('archive')">📁 الأرشيف</button>
-    <button class="nav-tab" onclick="showPage('evaluation')">🏆 التقييم</button>
-    <button class="nav-tab" onclick="showPage('team')">👥 الفريق</button>
-  </div>
-</nav>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<!-- ═══════════════════════════════════ -->
-<!-- PAGE: DASHBOARD                    -->
-<!-- ═══════════════════════════════════ -->
-<div class="page active" id="page-dashboard">
-  <div class="page-header">
-    <div>
-      <div class="page-title">الداشبورد اليومي</div>
-      <div class="date-display" id="date-display"></div>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" onclick="archiveToday()">📁 أرشف اليوم</button>
-      <button class="btn btn-teal" onclick="newDay()">+ يوم جديد</button>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <div class="stat-grid">
-    <div class="stat-card" style="border-color:#00c89640">
-      <div class="stat-num" id="stat-done" style="color:var(--teal)">0</div>
-      <div class="stat-label">✓ مكتمل</div>
-    </div>
-    <div class="stat-card" style="border-color:#f5a62340">
-      <div class="stat-num" id="stat-progress" style="color:var(--amber)">0</div>
-      <div class="stat-label">◐ جاري</div>
-    </div>
-    <div class="stat-card" style="border-color:#e05c5c40">
-      <div class="stat-num" id="stat-pending" style="color:var(--red)">0</div>
-      <div class="stat-label">○ لم يبدأ</div>
-    </div>
-    <div class="stat-card" style="border-color:#7b9cff40">
-      <div class="stat-num" style="color:var(--blue)">10</div>
-      <div class="stat-label">إجمالي العملاء</div>
-    </div>
-  </div>
-
-  <!-- Filter -->
-  <div class="filter-row">
-    <span style="font-size:13px;color:var(--gray);">فلتر:</span>
-    <button class="filter-btn active" onclick="filterBy('all',this)">الكل</button>
-    <button class="filter-btn" onclick="filterBy('أحمد محمد',this)">أحمد محمد</button>
-    <button class="filter-btn" onclick="filterBy('سارة علي',this)">سارة علي</button>
-    <button class="filter-btn" onclick="filterBy('محمود حسن',this)">محمود حسن</button>
-  </div>
-
-  <!-- Table -->
-  <div class="table-wrap">
-    <div class="table-head dashboard-grid">
-      <span>العميل</span><span>المراجع</span><span>التقدم</span><span>الحالة</span><span>ملاحظات</span><span></span>
-    </div>
-    <div id="clients-table"></div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════ -->
-<!-- PAGE: ARCHIVE                      -->
-<!-- ═══════════════════════════════════ -->
-<div class="page" id="page-archive">
-  <div class="page-header">
-    <div class="page-title">📁 الأرشيف اليومي</div>
-    <button class="btn btn-teal" onclick="addArchiveRow()">+ إضافة يوم</button>
-  </div>
-  <div class="table-wrap">
-    <div class="table-head arch-grid" style="font-size:11px;">
-      <span>التاريخ</span><span>مكتمل</span><span>جاري</span><span>لم يبدأ</span>
-      <span>أحمد %</span><span>سارة %</span><span>محمود %</span><span>% عام</span><span>ملاحظة</span><span>حذف</span>
-    </div>
-    <div id="archive-table"></div>
-  </div>
-  <div style="margin-top:12px;font-size:12px;color:var(--gray);">💡 اضغط على أي خلية لتعديلها مباشرة</div>
-</div>
-
-<!-- ═══════════════════════════════════ -->
-<!-- PAGE: EVALUATION                   -->
-<!-- ═══════════════════════════════════ -->
-<div class="page" id="page-evaluation">
-  <div class="page-header">
-    <div class="page-title">🏆 التقييم الشهري</div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:13px;color:var(--gray);">الشهر:</span>
-      <input type="month" id="eval-month" style="background:var(--mid);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--white);font-family:'Cairo',sans-serif;outline:none;" onchange="renderEval()">
-    </div>
-  </div>
-  <div style="background:var(--light);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--gray);">
-    📐 المعادلة: <span style="color:var(--teal)">الإنجاز 60%</span> + <span style="color:var(--amber)">الالتزام بالوقت 30%</span> + <span style="color:var(--blue)">الملاحظات 10%</span> — كل ملاحظة سلبية تخصم 2%
-  </div>
-  <div style="background:var(--light);border:1px solid #f5a62340;border-radius:10px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:var(--amber);">
-    🟡 أدخل الالتزام بالوقت وعدد الملاحظات السلبية يدوياً — باقي الأرقام بتيجي من الأرشيف أوتوماتيك
-  </div>
-  <div class="eval-grid" id="eval-cards"></div>
-</div>
-
-<!-- ═══════════════════════════════════ -->
-<!-- PAGE: TEAM                         -->
-<!-- ═══════════════════════════════════ -->
-<div class="page" id="page-team">
-  <div class="page-header">
-    <div class="page-title">👥 ملخص الفريق</div>
-  </div>
-  <div class="team-grid" id="team-cards"></div>
-</div>
-
-<!-- ═══════════════════════════════════ -->
-<!-- MODAL: CLIENT DETAIL               -->
-<!-- ═══════════════════════════════════ -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div>
-        <div class="modal-title" id="modal-client-name"></div>
-        <div style="font-size:13px;color:var(--gray);margin-top:4px;" id="modal-client-meta"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <!-- Progress -->
-    <div style="margin-bottom:20px;">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;">
-        <span>تقدم المراجعة</span>
-        <span style="color:var(--teal);font-weight:700;" id="modal-pct">0%</span>
-      </div>
-      <div class="prog-track" style="height:10px;">
-        <div class="prog-fill" id="modal-prog" style="background:linear-gradient(90deg,var(--teal-lt),var(--teal));width:0%"></div>
-      </div>
-    </div>
-    <div class="checklist-grid" id="modal-checklist"></div>
-    <div class="notes-row">
-      <div class="note-box">
-        <div class="note-label">📝 ملاحظات المراجع</div>
-        <textarea id="note-auditor" rows="3" placeholder="ملاحظات المراجع..."></textarea>
-      </div>
-      <div class="note-box">
-        <div class="note-label">👔 ملاحظات المدير</div>
-        <textarea id="note-manager" rows="3" placeholder="ملاحظات المدير..."></textarea>
-      </div>
-    </div>
-    <div style="display:flex;justify-content:flex-end;gap:8px;">
-      <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
-      <button class="btn btn-teal" onclick="saveModal()">💾 حفظ</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ══════════════════════════════════
-// DATA
-// ══════════════════════════════════
 const CLIENTS = [
-  {id:1,name:"شركة النيل للتجارة",auditor:"أحمد محمد"},
-  {id:2,name:"مجموعة الدلتا الصناعية",auditor:"سارة علي"},
-  {id:3,name:"شركة الهرم للمقاولات",auditor:"أحمد محمد"},
-  {id:4,name:"مؤسسة الفجر التجارية",auditor:"محمود حسن"},
-  {id:5,name:"شركة القاهرة للأغذية",auditor:"سارة علي"},
-  {id:6,name:"مجموعة السويس للبترول",auditor:"محمود حسن"},
-  {id:7,name:"شركة الإسكندرية للنسيج",auditor:"أحمد محمد"},
-  {id:8,name:"مؤسسة الشروق التجارية",auditor:"سارة علي"},
-  {id:9,name:"شركة الربيع للصناعات",auditor:"محمود حسن"},
-  {id:10,name:"مجموعة المستقبل المالية",auditor:"أحمد محمد"},
+  { id: 1, name: "شركة النيل للتجارة", auditor: "أحمد محمد" },
+  { id: 2, name: "مجموعة الدلتا الصناعية", auditor: "سارة علي" },
+  { id: 3, name: "شركة الهرم للمقاولات", auditor: "أحمد محمد" },
+  { id: 4, name: "مؤسسة الفجر التجارية", auditor: "محمود حسن" },
+  { id: 5, name: "شركة القاهرة للأغذية", auditor: "سارة علي" },
+  { id: 6, name: "مجموعة السويس للبترول", auditor: "محمود حسن" },
+  { id: 7, name: "شركة الإسكندرية للنسيج", auditor: "أحمد محمد" },
+  { id: 8, name: "مؤسسة الشروق التجارية", auditor: "سارة علي" },
+  { id: 9, name: "شركة الربيع للصناعات", auditor: "محمود حسن" },
+  { id: 10, name: "مجموعة المستقبل المالية", auditor: "أحمد محمد" },
 ];
-const AUDITORS = ["أحمد محمد","سارة علي","محمود حسن"];
+
 const CHECKLIST = [
-  {cat:"الدفتر العام",icon:"📒",items:["مطابقة أرصدة الحسابات مع كشوف البنك","البحث عن قيود غير معتادة أو بتواريخ قديمة","التأكد من صحة مراكز التكلفة"]},
-  {cat:"الذمم المدينة والدائنة",icon:"🔄",items:["تقرير عمر الديون +90 يوم","فواتير بدون أوردرات شراء","عملاء أو موردين برصيد غريب"]},
-  {cat:"المخزون",icon:"📦",items:["مطابقة الكميات الفعلية مع النظام","بضاعة راكدة أو منتهية الصلاحية","فروق الجرد"]},
-  {cat:"الرواتب والمصروفات",icon:"💰",items:["مطابقة مسير الرواتب مع العقود","مصروفات بدون موافقات","مكافآت غير مبررة"]},
-  {cat:"الإقفالات الشهرية",icon:"🔐",items:["اكتمال قيود الإهلاك","المصروفات المستحقة (Accruals)","مطابقة الضرائب المستحقة"]},
+  {
+    category: "الدفتر العام",
+    icon: "📒",
+    items: [
+      "مطابقة أرصدة الحسابات مع كشوف البنك",
+      "البحث عن قيود غير معتادة أو بتواريخ قديمة",
+      "التأكد من صحة مراكز التكلفة",
+    ],
+  },
+  {
+    category: "الذمم المدينة والدائنة",
+    icon: "🔄",
+    items: [
+      "تقرير عمر الديون +90 يوم (Aging Report)",
+      "فواتير بدون أوردرات شراء",
+      "عملاء أو موردين برصيد غريب",
+    ],
+  },
+  {
+    category: "المخزون",
+    icon: "📦",
+    items: [
+      "مطابقة الكميات الفعلية مع النظام",
+      "بضاعة راكدة أو منتهية الصلاحية",
+      "فروق الجرد",
+    ],
+  },
+  {
+    category: "الرواتب والمصروفات",
+    icon: "💰",
+    items: [
+      "مطابقة مسير الرواتب مع العقود",
+      "مصروفات بدون موافقات",
+      "مكافآت غير مبررة",
+    ],
+  },
+  {
+    category: "الإقفالات الشهرية",
+    icon: "🔐",
+    items: [
+      "اكتمال قيود الإهلاك",
+      "المصروفات المستحقة (Accruals)",
+      "مطابقة الضرائب المستحقة",
+    ],
+  },
 ];
-const TOTAL = CHECKLIST.reduce((a,c)=>a+c.items.length,0);
 
-// ══════════════════════════════════
-// STATE — localStorage
-// ══════════════════════════════════
-function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch{return def;}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+const today = () => new Date().toISOString().slice(0, 10);
 
-let state = load('audit_state', {
-  date: today(),
-  entries: buildEntries(),
-  archive: [],
-  evalInputs: {}
-});
-
-function today(){return new Date().toISOString().slice(0,10);}
-function buildEntries(){
-  const e={};
-  CLIENTS.forEach(c=>{e[c.id]={status:'pending',checks:{},auditorNote:'',managerNote:''};});
-  return e;
-}
-function getEntry(id){return state.entries[id]||(state.entries[id]={status:'pending',checks:{},auditorNote:'',managerNote:''});}
-function saveState(){save('audit_state',state);}
-
-// ══════════════════════════════════
-// NAV
-// ══════════════════════════════════
-function showPage(id){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  event.target.classList.add('active');
-  if(id==='dashboard') renderDashboard();
-  if(id==='archive') renderArchive();
-  if(id==='evaluation') renderEval();
-  if(id==='team') renderTeam();
-}
-
-// ══════════════════════════════════
-// DASHBOARD
-// ══════════════════════════════════
-let currentFilter = 'all';
-function filterBy(f,btn){
-  currentFilter=f;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderDashboard();
-}
-
-function renderDashboard(){
-  document.getElementById('date-display').textContent = '📅 ' + state.date;
-  const done=CLIENTS.filter(c=>getEntry(c.id).status==='done').length;
-  const prog=CLIENTS.filter(c=>getEntry(c.id).status==='in-progress').length;
-  const pend=CLIENTS.filter(c=>getEntry(c.id).status==='pending').length;
-  document.getElementById('stat-done').textContent=done;
-  document.getElementById('stat-progress').textContent=prog;
-  document.getElementById('stat-pending').textContent=pend;
-
-  const filtered = CLIENTS.filter(c=>currentFilter==='all'||c.auditor===currentFilter);
-  const tb = document.getElementById('clients-table');
-  tb.innerHTML = filtered.map(c=>{
-    const e=getEntry(c.id);
-    const pct=clientPct(c.id);
-    const pctColor = pct===100?'var(--teal)':pct>50?'var(--amber)':'var(--red)';
-    const bdg = e.status==='done'?'badge-done':e.status==='in-progress'?'badge-progress':'badge-pending';
-    const bdgTxt = e.status==='done'?'✓ مكتمل':e.status==='in-progress'?'◐ جاري':'○ لم يبدأ';
-    return `<div class="table-row dashboard-grid">
-      <span style="font-weight:700;">${c.name}</span>
-      <span style="color:var(--gray);font-size:13px;">${c.auditor}</span>
-      <span><div class="prog-wrap"><div class="prog-track"><div class="prog-fill" style="width:${pct}%;background:${pctColor}"></div></div><span class="prog-label">${pct}%</span></div></span>
-      <span><span class="badge ${bdg}">${bdgTxt}</span></span>
-      <span style="font-size:12px;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${e.auditorNote||''}</span>
-      <span><button class="btn btn-outline btn-sm" onclick="openModal(${c.id})">فتح</button></span>
-    </div>`;
-  }).join('');
-}
-
-function clientPct(id){
-  const e=getEntry(id);
-  const done=Object.values(e.checks||{}).filter(Boolean).length;
-  return Math.round(done/TOTAL*100);
-}
-
-function newDay(){
-  if(!confirm('هتبدأ يوم جديد؟ البيانات الحالية هتتحفظ في الأرشيف أوتوماتيك.')) return;
-  archiveToday(true);
-  state.date = today();
-  state.entries = buildEntries();
-  saveState();
-  renderDashboard();
-  toast('✅ تم بدء يوم جديد');
-}
-
-function archiveToday(silent=false){
-  const done=CLIENTS.filter(c=>getEntry(c.id).status==='done').length;
-  const prog=CLIENTS.filter(c=>getEntry(c.id).status==='in-progress').length;
-  const pend=CLIENTS.filter(c=>getEntry(c.id).status==='pending').length;
-  const auditorPcts={};
-  AUDITORS.forEach(a=>{
-    const acs=CLIENTS.filter(c=>c.auditor===a);
-    const avg=acs.reduce((s,c)=>s+clientPct(c.id),0)/acs.length;
-    auditorPcts[a]=Math.round(avg);
+const buildFreshDay = (date) => {
+  const entries = {};
+  CLIENTS.forEach((c) => {
+    entries[c.id] = {
+      status: "pending", // pending | in-progress | done
+      checks: buildEmptyChecks(),
+      auditorNote: "",
+      managerNote: "",
+      submittedAt: null,
+    };
   });
-  const row={
-    date:state.date, done, prog, pend,
-    pct0:auditorPcts[AUDITORS[0]]||0,
-    pct1:auditorPcts[AUDITORS[1]]||0,
-    pct2:auditorPcts[AUDITORS[2]]||0,
-    overall:Math.round(done/CLIENTS.length*100),
-    note:''
-  };
-  // avoid duplicate dates
-  state.archive = state.archive.filter(r=>r.date!==state.date);
-  state.archive.unshift(row);
-  saveState();
-  if(!silent) toast('📁 تم الأرشفة بنجاح');
-}
+  return { date, entries };
+};
 
-// ══════════════════════════════════
-// MODAL
-// ══════════════════════════════════
-let modalClientId = null;
-function openModal(id){
-  modalClientId=id;
-  const c=CLIENTS.find(x=>x.id===id);
-  const e=getEntry(id);
-  document.getElementById('modal-client-name').textContent=c.name;
-  document.getElementById('modal-client-meta').textContent=`المراجع: ${c.auditor} · ${state.date}`;
-  document.getElementById('note-auditor').value=e.auditorNote||'';
-  document.getElementById('note-manager').value=e.managerNote||'';
-  updateModalPct(id);
+const buildEmptyChecks = () => {
+  const checks = {};
+  CHECKLIST.forEach((cat, ci) => {
+    cat.items.forEach((_, ii) => {
+      checks[`${ci}-${ii}`] = false;
+    });
+  });
+  return checks;
+};
 
-  const cl=document.getElementById('modal-checklist');
-  cl.innerHTML=CHECKLIST.map((cat,ci)=>`
-    <div class="check-card">
-      <div class="check-cat"><span class="check-cat-icon">${cat.icon}</span><span class="check-cat-name">${cat.cat}</span></div>
-      ${cat.items.map((item,ii)=>{
-        const key=`${ci}-${ii}`;
-        const chk=e.checks&&e.checks[key];
-        return `<div class="check-item" onclick="toggleCheck(${id},'${key}',this)">
-          <div class="checkbox ${chk?'checked'}" id="chk-${key}"></div>
-          <span class="check-text ${chk?'done'}" id="txt-${key}">${item}</span>
-        </div>`;
-      }).join('')}
-    </div>`).join('');
+const totalChecks = CHECKLIST.reduce((a, c) => a + c.items.length, 0);
 
-  document.getElementById('modal').classList.add('open');
-}
+// ═══════════════════════════════════════════
+// STORAGE HELPERS
+// ═══════════════════════════════════════════
 
-function toggleCheck(id,key,el){
-  const e=getEntry(id);
-  if(!e.checks) e.checks={};
-  e.checks[key]=!e.checks[key];
-  const chk=document.getElementById('chk-'+key);
-  const txt=document.getElementById('txt-'+key);
-  chk.classList.toggle('checked',e.checks[key]);
-  txt.classList.toggle('done',e.checks[key]);
-  // update status
-  const done=Object.values(e.checks).filter(Boolean).length;
-  e.status=done===0?'pending':done===TOTAL?'done':'in-progress';
-  updateModalPct(id);
-  saveState();
-}
+const STORAGE_KEY = "audit_tracker_days";
 
-function updateModalPct(id){
-  const pct=clientPct(id);
-  document.getElementById('modal-pct').textContent=pct+'%';
-  document.getElementById('modal-prog').style.width=pct+'%';
-}
-
-function saveModal(){
-  const e=getEntry(modalClientId);
-  e.auditorNote=document.getElementById('note-auditor').value;
-  e.managerNote=document.getElementById('note-manager').value;
-  saveState();
-  closeModal();
-  renderDashboard();
-  toast('💾 تم الحفظ');
-}
-
-function closeModal(){
-  document.getElementById('modal').classList.remove('open');
-  renderDashboard();
-}
-
-// ══════════════════════════════════
-// ARCHIVE
-// ══════════════════════════════════
-function renderArchive(){
-  const tb=document.getElementById('archive-table');
-  if(!state.archive.length){
-    tb.innerHTML='<div style="padding:40px;text-align:center;color:var(--gray);">لا توجد بيانات بعد — استخدم زر "أرشف اليوم" من الداشبورد</div>';
-    return;
+const loadDays = async () => {
+  try {
+    const result = await window.storage.get(STORAGE_KEY);
+    return result ? JSON.parse(result.value) : {};
+  } catch {
+    return {};
   }
-  tb.innerHTML=state.archive.map((r,i)=>`
-    <div class="table-row arch-grid" style="font-size:12px;">
-      <input class="arch-input" value="${r.date}" onchange="updateArch(${i},'date',this.value)" style="color:var(--teal);">
-      <input class="arch-input" value="${r.done}" onchange="updateArch(${i},'done',this.value)" style="color:var(--teal);">
-      <input class="arch-input" value="${r.prog}" onchange="updateArch(${i},'prog',this.value)" style="color:var(--amber);">
-      <input class="arch-input" value="${r.pend}" onchange="updateArch(${i},'pend',this.value)" style="color:var(--red);">
-      <input class="arch-input" value="${r.pct0}%" onchange="updateArch(${i},'pct0',parseInt(this.value))" style="color:var(--gray);">
-      <input class="arch-input" value="${r.pct1}%" onchange="updateArch(${i},'pct1',parseInt(this.value))" style="color:var(--gray);">
-      <input class="arch-input" value="${r.pct2}%" onchange="updateArch(${i},'pct2',parseInt(this.value))" style="color:var(--gray);">
-      <input class="arch-input" value="${r.overall}%" onchange="updateArch(${i},'overall',parseInt(this.value))" style="color:var(--teal-lt);font-weight:700;">
-      <input class="arch-input" value="${r.note||''}" onchange="updateArch(${i},'note',this.value)" style="text-align:right;">
-      <button onclick="deleteArch(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">🗑</button>
-    </div>`).join('');
-}
+};
 
-function updateArch(i,field,val){state.archive[i][field]=val;saveState();}
-function deleteArch(i){if(confirm('حذف هذا اليوم؟')){state.archive.splice(i,1);saveState();renderArchive();}}
-function addArchiveRow(){
-  state.archive.unshift({date:today(),done:0,prog:0,pend:10,pct0:0,pct1:0,pct2:0,overall:0,note:''});
-  saveState();renderArchive();
-  toast('➕ تمت الإضافة');
-}
+const saveDays = async (days) => {
+  try {
+    await window.storage.set(STORAGE_KEY, JSON.stringify(days));
+  } catch (e) {
+    console.error("Storage error", e);
+  }
+};
 
-// ══════════════════════════════════
-// EVALUATION
-// ══════════════════════════════════
-function renderEval(){
-  const monthInput=document.getElementById('eval-month');
-  if(!monthInput.value){ monthInput.value=new Date().toISOString().slice(0,7); }
-  const month=monthInput.value;
-  if(!state.evalInputs[month]) state.evalInputs[month]={};
+// ═══════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════
 
-  const monthRows=state.archive.filter(r=>r.date&&r.date.startsWith(month));
+export default function App() {
+  const [days, setDays] = useState(null); // null = loading
+  const [currentDate, setCurrentDate] = useState(today());
+  const [view, setView] = useState("dashboard"); // dashboard | detail | history
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [filterAuditor, setFilterAuditor] = useState("الكل");
 
-  const cards=document.getElementById('eval-cards');
-  cards.innerHTML=AUDITORS.map((a,ai)=>{
-    const pctKey=['pct0','pct1','pct2'][ai];
-    const avgPct=monthRows.length?Math.round(monthRows.reduce((s,r)=>s+(r[pctKey]||0),0)/monthRows.length):0;
-    const inp=state.evalInputs[month][a]||{time:80,neg:0};
-    const score=Math.round(avgPct*0.6 + inp.time*0.3 + Math.max(0,10-inp.neg*2));
-    const grade=score>=90?['⭐⭐⭐ ممتاز','grade-excellent']:score>=70?['⭐⭐ جيد','grade-good']:['⭐ يحتاج تحسين','grade-improve'];
-    const scoreColor=score>=90?'var(--teal)':score>=70?'var(--blue)':'var(--red)';
-    return `<div class="eval-card">
-      <div class="eval-name">${a}</div>
-      <div class="eval-row"><span style="color:var(--gray)">أيام العمل المسجلة</span><span style="color:var(--blue);font-weight:700;">${monthRows.length} يوم</span></div>
-      <div class="eval-row"><span style="color:var(--gray)">متوسط الإنجاز</span><span style="color:var(--teal);font-weight:700;">${avgPct}%</span></div>
-      <div class="eval-row">
-        <span style="color:var(--gray)">الالتزام بالوقت</span>
-        <input class="eval-input" type="number" min="0" max="100" value="${inp.time}" onchange="updateEval('${month}','${a}','time',this.value)"> %
+  // Load from storage on mount
+  useEffect(() => {
+    (async () => {
+      const stored = await loadDays();
+      setDays(stored);
+    })();
+  }, []);
+
+  // Save whenever days changes
+  useEffect(() => {
+    if (days !== null) saveDays(days);
+  }, [days]);
+
+  if (days === null) {
+    return (
+      <div style={styles.loading}>
+        <div style={styles.spinner} />
+        <p style={{ color: "#7ee8c8", marginTop: 16, fontFamily: "Cairo, sans-serif" }}>جاري التحميل...</p>
       </div>
-      <div class="eval-row">
-        <span style="color:var(--gray)">ملاحظات سلبية</span>
-        <input class="eval-input" type="number" min="0" max="20" value="${inp.neg}" onchange="updateEval('${month}','${a}','neg',this.value)">
+    );
+  }
+
+  // Ensure today exists
+  const ensureToday = () => {
+    if (!days[currentDate]) {
+      const fresh = buildFreshDay(currentDate);
+      setDays((prev) => ({ ...prev, [currentDate]: fresh }));
+      return fresh;
+    }
+    return days[currentDate];
+  };
+
+  const dayData = days[currentDate] || buildFreshDay(currentDate);
+
+  const updateEntry = (clientId, field, value) => {
+    setDays((prev) => {
+      const day = prev[currentDate] || buildFreshDay(currentDate);
+      return {
+        ...prev,
+        [currentDate]: {
+          ...day,
+          entries: {
+            ...day.entries,
+            [clientId]: {
+              ...day.entries[clientId],
+              [field]: value,
+              ...(field === "status" && value === "done" ? { submittedAt: new Date().toLocaleTimeString("ar-EG") } : {}),
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const updateCheck = (clientId, key, val) => {
+    setDays((prev) => {
+      const day = prev[currentDate] || buildFreshDay(currentDate);
+      const entry = day.entries[clientId];
+      const newChecks = { ...entry.checks, [key]: val };
+      const doneCount = Object.values(newChecks).filter(Boolean).length;
+      const newStatus = doneCount === 0 ? "pending" : doneCount === totalChecks ? "done" : "in-progress";
+      return {
+        ...prev,
+        [currentDate]: {
+          ...day,
+          entries: {
+            ...day.entries,
+            [clientId]: {
+              ...entry,
+              checks: newChecks,
+              status: newStatus,
+              submittedAt: newStatus === "done" ? new Date().toLocaleTimeString("ar-EG") : entry.submittedAt,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const startNewDay = () => {
+    const t = today();
+    setCurrentDate(t);
+    if (!days[t]) {
+      setDays((prev) => ({ ...prev, [t]: buildFreshDay(t) }));
+    }
+    setView("dashboard");
+  };
+
+  const filteredClients = CLIENTS.filter(
+    (c) => filterAuditor === "الكل" || c.auditor === filterAuditor
+  );
+
+  const getClientProgress = (clientId) => {
+    const entry = dayData.entries[clientId];
+    if (!entry) return 0;
+    const done = Object.values(entry.checks).filter(Boolean).length;
+    return Math.round((done / totalChecks) * 100);
+  };
+
+  const doneCount = CLIENTS.filter((c) => dayData.entries[c.id]?.status === "done").length;
+  const inProgCount = CLIENTS.filter((c) => dayData.entries[c.id]?.status === "in-progress").length;
+  const pendingCount = CLIENTS.filter((c) => dayData.entries[c.id]?.status === "pending").length;
+
+  const pastDays = Object.keys(days)
+    .filter((d) => d !== currentDate)
+    .sort()
+    .reverse();
+
+  // ── VIEWS ──────────────────────────────
+
+  if (view === "detail" && selectedClient) {
+    const client = CLIENTS.find((c) => c.id === selectedClient);
+    const entry = dayData.entries[selectedClient] || buildEmptyChecks();
+    const progress = getClientProgress(selectedClient);
+
+    return (
+      <div dir="rtl" style={styles.root}>
+        <style>{globalCSS}</style>
+        <div style={styles.detailContainer}>
+          {/* Header */}
+          <div style={styles.detailHeader}>
+            <button style={styles.backBtn} onClick={() => setView("dashboard")}>
+              ← رجوع
+            </button>
+            <div>
+              <div style={styles.detailTitle}>{client.name}</div>
+              <div style={styles.detailMeta}>المراجع: {client.auditor} · {currentDate}</div>
+            </div>
+            <div style={{ ...styles.statusBadge, ...statusStyle(entry.status) }}>
+              {statusLabel(entry.status)}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={styles.progressWrap}>
+            <div style={styles.progressLabel}>
+              <span>تقدم المراجعة</span>
+              <span style={{ color: "#7ee8c8", fontWeight: 700 }}>{progress}%</span>
+            </div>
+            <div style={styles.progressTrack}>
+              <div style={{ ...styles.progressFill, width: `${progress}%` }} />
+            </div>
+          </div>
+
+          {/* Checklist */}
+          <div style={styles.checklistGrid}>
+            {CHECKLIST.map((cat, ci) => (
+              <div key={ci} style={styles.checkCard}>
+                <div style={styles.checkCatHeader}>
+                  <span style={styles.catIcon}>{cat.icon}</span>
+                  <span style={styles.catName}>{cat.category}</span>
+                </div>
+                {cat.items.map((item, ii) => {
+                  const key = `${ci}-${ii}`;
+                  const checked = entry.checks?.[key] || false;
+                  return (
+                    <label key={ii} style={styles.checkItem} className="check-item">
+                      <div
+                        style={{ ...styles.checkbox, ...(checked ? styles.checkboxDone : {}) }}
+                        onClick={() => updateCheck(selectedClient, key, !checked)}
+                      >
+                        {checked && <span style={styles.checkmark}>✓</span>}
+                      </div>
+                      <span style={{ ...styles.checkText, ...(checked ? styles.checkTextDone : {}) }}>
+                        {item}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Notes */}
+          <div style={styles.notesRow}>
+            <div style={styles.noteBox}>
+              <div style={styles.noteLabel}>📝 ملاحظات المراجع</div>
+              <textarea
+                style={styles.noteInput}
+                value={entry.auditorNote || ""}
+                onChange={(e) => updateEntry(selectedClient, "auditorNote", e.target.value)}
+                placeholder="اكتب ملاحظاتك هنا..."
+                rows={3}
+              />
+            </div>
+            <div style={styles.noteBox}>
+              <div style={styles.noteLabel}>👔 ملاحظات المدير</div>
+              <textarea
+                style={styles.noteInput}
+                value={entry.managerNote || ""}
+                onChange={(e) => updateEntry(selectedClient, "managerNote", e.target.value)}
+                placeholder="ملاحظات المدير على المراجعة..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          {entry.submittedAt && (
+            <div style={styles.submittedBadge}>✅ تم الإكمال الساعة {entry.submittedAt}</div>
+          )}
+        </div>
       </div>
-      <div class="eval-score" style="color:${scoreColor}">${score}%</div>
-      <div class="eval-grade ${grade[1]}">${grade[0]}</div>
-    </div>`;
-  }).join('');
-}
+    );
+  }
 
-function updateEval(month,auditor,field,val){
-  if(!state.evalInputs[month]) state.evalInputs[month]={};
-  if(!state.evalInputs[month][auditor]) state.evalInputs[month][auditor]={time:80,neg:0};
-  state.evalInputs[month][auditor][field]=Number(val);
-  saveState();
-  renderEval();
-}
-
-// ══════════════════════════════════
-// TEAM
-// ══════════════════════════════════
-function renderTeam(){
-  const tc=document.getElementById('team-cards');
-  tc.innerHTML=AUDITORS.map(a=>{
-    const acs=CLIENTS.filter(c=>c.auditor===a);
-    const done=acs.filter(c=>getEntry(c.id).status==='done').length;
-    const prog=acs.filter(c=>getEntry(c.id).status==='in-progress').length;
-    const pend=acs.filter(c=>getEntry(c.id).status==='pending').length;
-    const pct=Math.round(done/acs.length*100);
-    const clr=pct===100?'var(--teal)':pct>50?'var(--amber)':'var(--red)';
-    return `<div class="team-card">
-      <div class="team-name">${a}</div>
-      <div style="font-size:12px;color:var(--gray);margin-bottom:12px;">${acs.length} عميل</div>
-      <div class="prog-track" style="height:8px;margin-bottom:4px;">
-        <div class="prog-fill" style="width:${pct}%;background:${clr}"></div>
+  if (view === "history") {
+    return (
+      <div dir="rtl" style={styles.root}>
+        <style>{globalCSS}</style>
+        <div style={styles.container}>
+          <div style={styles.histHeader}>
+            <button style={styles.backBtn} onClick={() => setView("dashboard")}>← رجوع</button>
+            <h2 style={styles.histTitle}>📅 سجل الأيام السابقة</h2>
+          </div>
+          {pastDays.length === 0 ? (
+            <div style={styles.emptyState}>لا توجد بيانات سابقة بعد</div>
+          ) : (
+            pastDays.map((d) => {
+              const dd = days[d];
+              const ddone = CLIENTS.filter((c) => dd.entries[c.id]?.status === "done").length;
+              const pct = Math.round((ddone / CLIENTS.length) * 100);
+              return (
+                <div
+                  key={d}
+                  style={styles.histCard}
+                  className="hist-card"
+                  onClick={() => { setCurrentDate(d); setView("dashboard"); }}
+                >
+                  <div style={styles.histDate}>{d}</div>
+                  <div style={styles.histStats}>
+                    <span style={{ color: "#7ee8c8" }}>{ddone}/{CLIENTS.length} مكتمل</span>
+                    <div style={styles.miniTrack}>
+                      <div style={{ ...styles.miniFill, width: `${pct}%` }} />
+                    </div>
+                    <span style={{ color: "#7ee8c8", fontWeight: 700 }}>{pct}%</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
-      <div class="team-pct" style="color:${clr}">${pct}%</div>
-      <div style="display:flex;gap:8px;font-size:12px;margin-top:8px;">
-        <span style="color:var(--teal)">✓ ${done}</span>
-        <span style="color:var(--amber)">◐ ${prog}</span>
-        <span style="color:var(--gray)">○ ${pend}</span>
+    );
+  }
+
+  // ── DASHBOARD ──────────────────────────
+
+  return (
+    <div dir="rtl" style={styles.root}>
+      <style>{globalCSS}</style>
+      <div style={styles.container}>
+
+        {/* Top bar */}
+        <div style={styles.topBar}>
+          <div>
+            <div style={styles.appTitle}>🔍 نظام متابعة المراجعة</div>
+            <div style={styles.dateLabel}>{currentDate}</div>
+          </div>
+          <div style={styles.topActions}>
+            <button style={styles.histBtn} onClick={() => setView("history")}>📅 السجل</button>
+            <button style={styles.newDayBtn} onClick={startNewDay}>+ يوم جديد</button>
+          </div>
+        </div>
+
+        {/* Summary cards */}
+        <div style={styles.summaryRow}>
+          <div style={{ ...styles.sumCard, borderColor: "#00c896" }}>
+            <div style={{ ...styles.sumNum, color: "#00c896" }}>{doneCount}</div>
+            <div style={styles.sumLabel}>مكتمل</div>
+          </div>
+          <div style={{ ...styles.sumCard, borderColor: "#f5a623" }}>
+            <div style={{ ...styles.sumNum, color: "#f5a623" }}>{inProgCount}</div>
+            <div style={styles.sumLabel}>جاري</div>
+          </div>
+          <div style={{ ...styles.sumCard, borderColor: "#e05c5c" }}>
+            <div style={{ ...styles.sumNum, color: "#e05c5c" }}>{pendingCount}</div>
+            <div style={styles.sumLabel}>لم يبدأ</div>
+          </div>
+          <div style={{ ...styles.sumCard, borderColor: "#7b9cff" }}>
+            <div style={{ ...styles.sumNum, color: "#7b9cff" }}>{CLIENTS.length}</div>
+            <div style={styles.sumLabel}>إجمالي</div>
+          </div>
+        </div>
+
+        {/* Auditor filter */}
+        <div style={styles.filterRow}>
+          {["الكل", ...AUDITORS].map((a) => (
+            <button
+              key={a}
+              style={{ ...styles.filterBtn, ...(filterAuditor === a ? styles.filterBtnActive : {}) }}
+              onClick={() => setFilterAuditor(a)}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+
+        {/* Clients table */}
+        <div style={styles.tableWrap}>
+          <div style={styles.tableHeader}>
+            <span style={{ flex: 2 }}>العميل</span>
+            <span style={{ flex: 1.2 }}>المراجع</span>
+            <span style={{ flex: 1 }}>التقدم</span>
+            <span style={{ flex: 0.8 }}>الحالة</span>
+            <span style={{ flex: 0.6 }}></span>
+          </div>
+
+          {filteredClients.map((c) => {
+            const entry = dayData.entries[c.id];
+            const progress = getClientProgress(c.id);
+            return (
+              <div key={c.id} style={styles.tableRow} className="table-row">
+                <span style={{ flex: 2, fontWeight: 600, color: "#e6edf3" }}>{c.name}</span>
+                <span style={{ flex: 1.2, color: "#8b949e", fontSize: 13 }}>{c.auditor}</span>
+                <span style={{ flex: 1 }}>
+                  <div style={styles.miniTrack}>
+                    <div style={{ ...styles.miniFill, width: `${progress}%`, background: progressColor(progress) }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: "#8b949e" }}>{progress}%</span>
+                </span>
+                <span style={{ flex: 0.8 }}>
+                  <span style={{ ...styles.statusBadge, ...statusStyle(entry?.status) }}>
+                    {statusLabel(entry?.status)}
+                  </span>
+                </span>
+                <span style={{ flex: 0.6 }}>
+                  <button
+                    style={styles.openBtn}
+                    onClick={() => { setSelectedClient(c.id); ensureToday(); setView("detail"); }}
+                  >
+                    فتح
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Auditor summary */}
+        <div style={styles.auditorSection}>
+          <div style={styles.sectionTitle}>📊 ملخص الفريق</div>
+          <div style={styles.auditorGrid}>
+            {AUDITORS.map((a) => {
+              const aClients = CLIENTS.filter((c) => c.auditor === a);
+              const aDone = aClients.filter((c) => dayData.entries[c.id]?.status === "done").length;
+              const pct = Math.round((aDone / aClients.length) * 100);
+              return (
+                <div key={a} style={styles.auditorCard}>
+                  <div style={styles.auditorName}>{a}</div>
+                  <div style={styles.auditorStat}>{aDone}/{aClients.length} عميل</div>
+                  <div style={styles.progressTrack}>
+                    <div style={{ ...styles.progressFill, width: `${pct}%` }} />
+                  </div>
+                  <div style={{ ...styles.auditorPct, color: pct === 100 ? "#00c896" : pct > 50 ? "#f5a623" : "#e05c5c" }}>
+                    {pct}%
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  );
 }
 
-// ══════════════════════════════════
-// TOAST
-// ══════════════════════════════════
-function toast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
-}
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
 
-// ══════════════════════════════════
-// INIT
-// ══════════════════════════════════
-renderDashboard();
-</script>
-</body>
-</html>
+const statusLabel = (s) => ({ done: "✓ مكتمل", "in-progress": "◐ جاري", pending: "○ لم يبدأ" }[s] || "○ لم يبدأ");
+const statusStyle = (s) => ({
+  done: { color: "#00c896", background: "#00c89618", borderColor: "#00c89640" },
+  "in-progress": { color: "#f5a623", background: "#f5a62318", borderColor: "#f5a62340" },
+  pending: { color: "#8b949e", background: "#8b949e18", borderColor: "#8b949e40" },
+}[s] || { color: "#8b949e", background: "#8b949e18", borderColor: "#8b949e40" });
+
+const progressColor = (p) => p === 100 ? "#00c896" : p > 50 ? "#f5a623" : "#e05c5c";
+
+// ═══════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════
+
+const styles = {
+  root: { minHeight: "100vh", background: "#0d1117", fontFamily: "'Cairo', sans-serif", color: "#e6edf3" },
+  loading: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0d1117" },
+  spinner: { width: 40, height: 40, border: "3px solid #1c2128", borderTop: "3px solid #7ee8c8", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  container: { maxWidth: 960, margin: "0 auto", padding: "24px 16px" },
+  detailContainer: { maxWidth: 820, margin: "0 auto", padding: "24px 16px" },
+
+  topBar: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28 },
+  appTitle: { fontSize: 22, fontWeight: 900, color: "#7ee8c8", letterSpacing: "-0.5px" },
+  dateLabel: { fontSize: 13, color: "#8b949e", marginTop: 4 },
+  topActions: { display: "flex", gap: 10 },
+  histBtn: { padding: "8px 16px", borderRadius: 8, border: "1px solid #30363d", background: "transparent", color: "#8b949e", cursor: "pointer", fontSize: 13, fontFamily: "Cairo, sans-serif" },
+  newDayBtn: { padding: "8px 18px", borderRadius: 8, border: "none", background: "#7ee8c8", color: "#0d1117", fontWeight: 700, cursor: "pointer", fontSize: 13, fontFamily: "Cairo, sans-serif" },
+
+  summaryRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 },
+  sumCard: { background: "#161b22", border: "1px solid", borderRadius: 12, padding: "16px 12px", textAlign: "center" },
+  sumNum: { fontSize: 32, fontWeight: 900 },
+  sumLabel: { fontSize: 12, color: "#8b949e", marginTop: 4 },
+
+  filterRow: { display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" },
+  filterBtn: { padding: "6px 14px", borderRadius: 20, border: "1px solid #30363d", background: "transparent", color: "#8b949e", cursor: "pointer", fontSize: 13, fontFamily: "Cairo, sans-serif", transition: "all 0.2s" },
+  filterBtnActive: { background: "#7ee8c820", borderColor: "#7ee8c8", color: "#7ee8c8" },
+
+  tableWrap: { background: "#161b22", borderRadius: 12, border: "1px solid #30363d", overflow: "hidden", marginBottom: 28 },
+  tableHeader: { display: "flex", padding: "12px 16px", background: "#0d1117", borderBottom: "1px solid #30363d", fontSize: 12, color: "#8b949e", fontWeight: 600, gap: 8 },
+  tableRow: { display: "flex", padding: "14px 16px", borderBottom: "1px solid #21262d", alignItems: "center", gap: 8, cursor: "default", transition: "background 0.15s" },
+
+  statusBadge: { padding: "3px 10px", borderRadius: 20, border: "1px solid", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" },
+
+  miniTrack: { height: 4, background: "#21262d", borderRadius: 4, overflow: "hidden", flex: 1, minWidth: 60, marginBottom: 2 },
+  miniFill: { height: "100%", background: "#7ee8c8", borderRadius: 4, transition: "width 0.4s" },
+
+  openBtn: { padding: "5px 12px", borderRadius: 6, border: "1px solid #30363d", background: "transparent", color: "#7ee8c8", cursor: "pointer", fontSize: 12, fontFamily: "Cairo, sans-serif" },
+
+  auditorSection: { marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: 700, color: "#8b949e", marginBottom: 14 },
+  auditorGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 },
+  auditorCard: { background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 16 },
+  auditorName: { fontSize: 14, fontWeight: 700, marginBottom: 4 },
+  auditorStat: { fontSize: 12, color: "#8b949e", marginBottom: 10 },
+  auditorPct: { fontSize: 18, fontWeight: 900, marginTop: 6 },
+
+  // Detail view
+  detailHeader: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" },
+  backBtn: { padding: "8px 14px", borderRadius: 8, border: "1px solid #30363d", background: "transparent", color: "#8b949e", cursor: "pointer", fontSize: 13, fontFamily: "Cairo, sans-serif" },
+  detailTitle: { fontSize: 20, fontWeight: 900, color: "#e6edf3" },
+  detailMeta: { fontSize: 13, color: "#8b949e", marginTop: 3 },
+
+  progressWrap: { marginBottom: 24 },
+  progressLabel: { display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 },
+  progressTrack: { height: 8, background: "#21262d", borderRadius: 4, overflow: "hidden" },
+  progressFill: { height: "100%", background: "linear-gradient(90deg, #7ee8c8, #00c896)", borderRadius: 4, transition: "width 0.4s" },
+
+  checklistGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 24 },
+  checkCard: { background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 16 },
+  checkCatHeader: { display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingBottom: 10, borderBottom: "1px solid #21262d" },
+  catIcon: { fontSize: 16 },
+  catName: { fontSize: 13, fontWeight: 700, color: "#7ee8c8" },
+  checkItem: { display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10, cursor: "pointer" },
+  checkbox: { width: 18, height: 18, borderRadius: 4, border: "1.5px solid #30363d", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", cursor: "pointer", marginTop: 1 },
+  checkboxDone: { background: "#00c896", borderColor: "#00c896" },
+  checkmark: { color: "#0d1117", fontSize: 11, fontWeight: 900 },
+  checkText: { fontSize: 13, color: "#8b949e", lineHeight: 1.5, transition: "color 0.2s" },
+  checkTextDone: { color: "#4a5568", textDecoration: "line-through" },
+
+  notesRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 },
+  noteBox: { background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 16 },
+  noteLabel: { fontSize: 12, color: "#8b949e", marginBottom: 10, fontWeight: 600 },
+  noteInput: { width: "100%", background: "#0d1117", border: "1px solid #30363d", borderRadius: 8, padding: "10px 12px", color: "#e6edf3", fontSize: 13, fontFamily: "Cairo, sans-serif", resize: "vertical", outline: "none" },
+
+  submittedBadge: { background: "#00c89615", border: "1px solid #00c89640", color: "#00c896", borderRadius: 8, padding: "10px 16px", textAlign: "center", fontSize: 13, fontWeight: 600 },
+
+  // History
+  histHeader: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
+  histTitle: { fontSize: 18, fontWeight: 700 },
+  histCard: { background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: "16px 20px", marginBottom: 10, cursor: "pointer", transition: "border-color 0.2s" },
+  histDate: { fontWeight: 700, marginBottom: 10 },
+  histStats: { display: "flex", alignItems: "center", gap: 12, fontSize: 13 },
+  emptyState: { color: "#8b949e", textAlign: "center", padding: 60, fontSize: 15 },
+};
+
+const globalCSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .table-row:hover { background: #1c2128 !important; }
+  .hist-card:hover { border-color: #7ee8c8 !important; }
+  .check-item:hover span { color: #c9d1d9 !important; }
+  textarea:focus { border-color: #7ee8c8 !important; }
+  @media (max-width: 600px) {
+    .checklist-grid { grid-template-columns: 1fr !important; }
+    .auditor-grid { grid-template-columns: 1fr !important; }
+    .summary-row { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+`;
